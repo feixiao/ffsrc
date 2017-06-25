@@ -1,5 +1,7 @@
 #include "avformat.h"
 
+// 简单的注册/初始化函数，把相应的协议，文件格式，解码器等用相应的链表串起来便于查找。
+
 extern URLProtocol file_protocol;
 
 void av_register_all(void)
