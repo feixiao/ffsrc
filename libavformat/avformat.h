@@ -37,6 +37,7 @@ extern "C"
 
 #define MAX_STREAMS 20
 
+// 代表音视频数据帧，固有的属性是一些标记，时钟信息，和压缩数据首地址，大小等信息。
 typedef struct AVPacket
 {
     int64_t pts; // presentation time stamp in time_base units
@@ -49,6 +50,7 @@ typedef struct AVPacket
     void(*destruct)(struct AVPacket*);
 } AVPacket;
 
+// 把音视频AVPacket组成一个小链表。
 typedef struct AVPacketList
 {
     AVPacket pkt;
@@ -116,11 +118,12 @@ typedef struct AVIndexEntry
     int size: 30; //yeah trying to keep the size of this small to reduce memory requirements (its 24 vs 32 byte due to possible 8byte align)
 } AVIndexEntry;
 
+// 表示当前媒体流的上下文，着重于所有媒体流共有的属性(并且是在程序运行时才能确定其值)和关联其他结构的字段
 typedef struct AVStream
 {
-    AVCodecContext *actx;  // codec context, change from AVCodecContext *codec;
+    AVCodecContext *actx;  // 关联当前音视频媒体使用的编解码器
 
-    void *priv_data;       // AVIStream
+    void *priv_data;       // AVIStream  关联解析各个具体媒体流与文件容器有关的独有的属性
 
     AVRational time_base; // 由 av_set_pts_info()函数初始化
 
@@ -136,11 +139,12 @@ typedef struct AVFormatParameters
     int dbg; //only for debug
 } AVFormatParameters;
 
+// 文件容器格式
 typedef struct AVInputFormat
 {
     const char *name;
 
-    int priv_data_size;
+    int priv_data_size;				// 标示具体的文件容器格式对应的Context的大小
 
     int(*read_probe)(AVProbeData*);
 
@@ -150,23 +154,25 @@ typedef struct AVInputFormat
 
     int(*read_close)(struct AVFormatContext*);
 
-    const char *extensions;     // 文件扩展名
+    const char *extensions;			// 文件扩展名
 
     struct AVInputFormat *next;
 
 } AVInputFormat;
 
+// AVFormatContext 结构表示程序运行的当前文件容器格式使用的上下文，着重于所有文件容器共有的属性(并
+// 且是在程序运行时才能确定其值)和关联其他结构的字段。
 typedef struct AVFormatContext  // format I/O context
 {
-    struct AVInputFormat *iformat;
+    struct AVInputFormat *iformat;	// 关联相应的文件容器格式
 
-    void *priv_data;
+    void *priv_data;				// 指向具体的文件容器格式的上下文Context和priv_data_size配对使用
 
-    ByteIOContext pb;
+    ByteIOContext pb;				// 广泛意义的输入文件 ????  
 
     int nb_streams;
 
-    AVStream *streams[MAX_STREAMS];
+    AVStream *streams[MAX_STREAMS];	// 关联音视频流
 
 } AVFormatContext;
 

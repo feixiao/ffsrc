@@ -22,7 +22,8 @@ extern "C"
 
 #define AV_NOPTS_VALUE          int64_t_C(0x8000000000000000)
 #define AV_TIME_BASE            1000000
-
+// https://github.com/feixiao/ffmpeg-2.8.11/blob/master/libavcodec/avcodec.h
+// AVCodecID 
 enum CodecID
 {
     CODEC_ID_TRUESPEECH,
@@ -55,28 +56,29 @@ typedef struct AVFrame
     uint8_t *base[4];
 } AVFrame;
 
+// AVCodecContext结构表示程序运行的当前Codec使用的上下文，着重于所有Codec共有的属性(并且是在程序运行时才能确定其值)和关联其他结构的字段。
 typedef struct AVCodecContext
 {
     int bit_rate;
-    int frame_number; // audio or video frame number
+    int frame_number;			// audio or video frame number
 
-    unsigned char *extradata; // Codec的私有数据，对Audio是WAVEFORMATEX结构扩展字节。
-    int extradata_size; // 对Video是BITMAPINFOHEADER后的扩展字节
+    unsigned char *extradata;	// Codec的私有数据，对Audio是WAVEFORMATEX结构扩展字节。
+    int extradata_size;			// 对Video是BITMAPINFOHEADER后的扩展字节
 
     int width, height;
 
     enum PixelFormat pix_fmt;
 
-    int sample_rate; // samples per sec  // audio only
+    int sample_rate;			// samples per sec  // audio only
     int channels;
     int bits_per_sample;
     int block_align;
 
     struct AVCodec *codec;
-    void *priv_data;
+    void *priv_data;			// AVCodec结构中的priv_data_size 配对使用
 
-    enum CodecType codec_type; // see CODEC_TYPE_xxx
-    enum CodecID codec_id; // see CODEC_ID_xxx
+    enum CodecType codec_type;	// see CODEC_TYPE_xxx
+    enum CodecID codec_id;		// see CODEC_ID_xxx
 
     int(*get_buffer)(struct AVCodecContext *c, AVFrame *pic);
     void(*release_buffer)(struct AVCodecContext *c, AVFrame *pic);
@@ -90,17 +92,19 @@ typedef struct AVCodecContext
 
 typedef struct AVCodec
 {
-    const char *name;
-    enum CodecType type;
-    enum CodecID id;
-    int priv_data_size;
+    const char *name;					// 标示Codec的名字
+    enum CodecType type;				// 标示Codec的类型，有Video ，Audio，Data 等类型
+    enum CodecID id;					// 标示Codec的ID，有CODEC_ID_MSRLE，CODEC_ID_TRUESPEECH 等
+    int priv_data_size;					// 标示具体的Codec对应的Context的大小
+
+	// 标示Codec对外提供的操作
     int(*init)(AVCodecContext*);
     int(*encode)(AVCodecContext *, uint8_t *buf, int buf_size, void *data);
     int(*close)(AVCodecContext*);
     int(*decode)(AVCodecContext *, void *outdata, int *outdata_size, uint8_t *buf, int buf_size);
-    int capabilities;
+    int capabilities;					// 标示Codec的能力，在瘦身后的ffplay中没太大作用，可忽略
 
-    struct AVCodec *next;
+    struct AVCodec *next;				// 用于把所有Codec串成一个链表，便于遍历
 }AVCodec;
 
 #define AVPALETTE_SIZE 1024

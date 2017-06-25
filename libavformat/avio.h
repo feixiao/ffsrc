@@ -9,15 +9,18 @@ typedef int64_t offset_t;
 #define URL_WRONLY 1
 #define URL_RDWR   2
 
+// URLContext 结构表示程序运行的当前广义输入文件使用的上下文，
+// 着重于所有广义输入文件共有的属性(并且是在程序运行时才能确定其值)和关联其他结构的字段
 typedef struct URLContext
 {
-    struct URLProtocol *prot;
+    struct URLProtocol *prot;	// prot 字段关联相应的广义输入文件
     int flags;
     int max_packet_size; // if non zero, the stream is packetized with this max packet size
     void *priv_data;
     char filename[1]; // specified filename
 } URLContext;
 
+// 表示广义的输入文件，着重于功能函数，瘦身后的ffplay只支持file 一种输入文件
 typedef struct URLProtocol
 {
     const char *name;
@@ -26,15 +29,16 @@ typedef struct URLProtocol
     int(*url_write)(URLContext *h, unsigned char *buf, int size);
     offset_t(*url_seek)(URLContext *h, offset_t pos, int whence);
     int(*url_close)(URLContext *h);
-    struct URLProtocol *next;
+    struct URLProtocol *next;			// 用于把所有支持的广义的输入文件连接成链表，便于遍历查找。
 } URLProtocol;
 
+// 扩展URLProtocol 结构成内部有缓冲机制的广泛意义上的文件，改善广义输入文件的IO性能。
 typedef struct ByteIOContext
 {
     unsigned char *buffer;
     int buffer_size;
     unsigned char *buf_ptr,  *buf_end;
-    void *opaque;
+    void *opaque;						// 关联URLContext
     int (*read_buf)(void *opaque, uint8_t *buf, int buf_size);
     int (*write_buf)(void *opaque, uint8_t *buf, int buf_size);
     offset_t(*seek)(void *opaque, offset_t offset, int whence);

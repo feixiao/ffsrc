@@ -17,6 +17,7 @@
 static int avi_load_index(AVFormatContext *s);
 static int guess_ni_flag(AVFormatContext *s);
 
+// 定义了AVI文件中媒体流的一些属性，用于解析AVI文件。
 typedef struct
 {
     int64_t frame_offset; // current frame(video) or byte(audio) counter(used to compute the pts)
@@ -33,13 +34,14 @@ typedef struct
     int prefix_count;
 } AVIStream;
 
+// AVIContext定义了AVI中流的一些属性，其中stream_index_2 定义了当前应该读取流的索引。
 typedef struct
 {
-    int64_t riff_end;    // RIFF块大小
+    int64_t riff_end;		// RIFF块大小
     int64_t movi_list;   
     int64_t movi_end;    
     int non_interleaved;
-    int stream_index_2;  // 为了和AVPacket中的stream_index相区别
+    int stream_index_2;		// 为了和AVPacket中的stream_index相区别
 } AVIContext;
 
 typedef struct
