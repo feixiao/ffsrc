@@ -2,7 +2,8 @@
 #include "avformat.h"
 
 URLProtocol *first_protocol = NULL;
-
+// 把URLProtocol 串联起来做成链表，便于查找。
+// register_protocol 实际就是串联的各个URLProtocol，全局表头为first_protocol。
 int register_protocol(URLProtocol *protocol)
 {
     URLProtocol **p;
@@ -13,7 +14,8 @@ int register_protocol(URLProtocol *protocol)
     protocol->next = NULL;
     return 0;
 }
-
+// 打开广义输入文件。此函数主要有三部分逻辑，首先从文件路径名中分离出协议字符串到proto_str字符数组中，
+// 接着遍历URLProtocol 链表查找匹配proto_str字符数组中的字符串来确定使用的协议，最后调用相应的文件协议的打开函数打开输入文件。
 int url_open(URLContext **puc, const char *filename, int flags)
 {
     URLContext *uc;
@@ -22,6 +24,7 @@ int url_open(URLContext **puc, const char *filename, int flags)
     char proto_str[128],  *q;
     int err;
 
+// 以冒号和结束符作为边界从文件名中分离出的协议字符串到proto_str 字符数组
     p = filename;
     q = proto_str;
     while (*p != '\0' &&  *p != ':')
