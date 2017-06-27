@@ -24,7 +24,7 @@ int url_open(URLContext **puc, const char *filename, int flags)
     char proto_str[128],  *q;
     int err;
 
-// 以冒号和结束符作为边界从文件名中分离出的协议字符串到proto_str 字符数组
+	// 以冒号和结束符作为边界从文件名中分离出的协议字符串到proto_str字符数组
     p = filename;
     q = proto_str;
     while (*p != '\0' &&  *p != ':')
@@ -36,6 +36,7 @@ int url_open(URLContext **puc, const char *filename, int flags)
         p++;
     }
     // if the protocol has length 1, we consider it is a dos drive
+	// 如果协议字符串只有一个字符，我们就认为是windows 下的逻辑盘符，断定是file。
     if (*p == '\0' || (q - proto_str) <= 1)
     {
 file_proto: 
@@ -46,6 +47,7 @@ file_proto:
         *q = '\0';
     }
 
+	// 遍历URLProtocol 链表匹配使用的协议，如果没有找到就返回错误码。
     up = first_protocol;
     while (up != NULL)
     {
@@ -56,6 +58,8 @@ file_proto:
     err =  - ENOENT;
     goto fail;
 found: 
+	// 如果找到就分配URLContext 结构内存，特别注意内存大小要加上文件名长度，文件名字符串结束标记0 
+	// 也要预先分配1个字节内存，这1 个字节就是URLContext结构中的char filename[1]
 	uc = av_malloc(sizeof(URLContext) + strlen(filename));
     if (!uc)
     {
@@ -66,6 +70,7 @@ found:
     uc->prot = up;
     uc->flags = flags;
     uc->max_packet_size = 0; // default: stream file
+	// 接着调用相应协议的文件打开函数
     err = up->url_open(uc, filename, flags);
     if (err < 0)
     {
@@ -79,7 +84,7 @@ fail:
 	*puc = NULL;
     return err;
 }
-
+// 简单的中转读操作到底层协议的读函数，完成读操作。
 int url_read(URLContext *h, unsigned char *buf, int size)
 {
     int ret;
@@ -89,6 +94,7 @@ int url_read(URLContext *h, unsigned char *buf, int size)
     return ret;
 }
 
+// 简单的中转seek 操作到底层协议的seek函数，完成seek操作。
 offset_t url_seek(URLContext *h, offset_t pos, int whence)
 {
     offset_t ret;
@@ -98,7 +104,7 @@ offset_t url_seek(URLContext *h, offset_t pos, int whence)
     ret = h->prot->url_seek(h, pos, whence);
     return ret;
 }
-
+// 简单的中转关闭操作到底层协议的关闭函数，完成关闭操作，并释放在url_open()函数中malloc出来的内存。
 int url_close(URLContext *h)
 {
     int ret;
@@ -107,7 +113,7 @@ int url_close(URLContext *h)
     av_free(h);
     return ret;
 }
-
+// 取最大数据包大小，如果非0，必须是实质有效的。
 int url_get_max_packet_size(URLContext *h)
 {
     return h->max_packet_size;
