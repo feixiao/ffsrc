@@ -1,6 +1,7 @@
 #include "avformat.h"
 
 #include <assert.h>
+// AVI 文件解析的相关函数
 
 #define AVIIF_INDEX			0x10
 
@@ -20,9 +21,9 @@ static int guess_ni_flag(AVFormatContext *s);
 // 定义了AVI文件中媒体流的一些属性，用于解析AVI文件。
 typedef struct
 {
-    int64_t frame_offset; // current frame(video) or byte(audio) counter(used to compute the pts)
-    int remaining;
-    int packet_size;
+    int64_t frame_offset;		// 帧偏移，视频用帧计数，音频用字节计数，用于计算pts 表示时间
+    int remaining;				// 表示需要读的数据大小，初值是帧裸数组大小，全部读完后为0。
+    int packet_size;			// 包大小，非交织和帧裸数据大小相同，交织比帧裸数据大小大8 字节。
 
     int scale;
     int rate;
@@ -38,93 +39,110 @@ typedef struct
 typedef struct
 {
     int64_t riff_end;		// RIFF块大小
-    int64_t movi_list;   
-    int64_t movi_end;    
-    int non_interleaved;
+    int64_t movi_list;		// 媒体数据块开始字节相对文件开始字节的偏移
+    int64_t movi_end;		// 媒体数据块开始字节相对文件开始字节的偏移
+    int non_interleaved;	// 指示是否是非交织AVI
     int stream_index_2;		// 为了和AVPacket中的stream_index相区别
+							// 指示当前应该读取的流的索引。初值为-1，表示没有确定应该读的流。
+							// 实际表示AVFormatContext 结构中AVStream *streams[]数组中的索引。
 } AVIContext;
 
+// CodecTag数据结构，用于关联具体媒体格式的ID和Tag标签。
 typedef struct
 {
-    int id;
-    unsigned int tag;
+    int id;				// ID 号码
+    unsigned int tag;	// 标签
 } CodecTag;
 
+// 瘦身后的ffplay支持的一些视频媒体ID和Tag标签数组。
 const CodecTag codec_bmp_tags[] =
 {
     {CODEC_ID_MSRLE, MKTAG('m', 'r', 'l', 'e')},
     {CODEC_ID_MSRLE, MKTAG(0x1, 0x0, 0x0, 0x0)},
     {CODEC_ID_NONE,  0},
 };
-
+// 瘦身后的ffplay支持的一些音频媒体ID和Tag标签数组。
 const CodecTag codec_wav_tags[] =
 {
     {CODEC_ID_TRUESPEECH, 0x22},
     {0, 0},
 };
 
+// 以媒体tag标签为关键字，查找codec_bmp_tags或codec_wav_tags数组，返回媒体ID。
 enum CodecID codec_get_id(const CodecTag *tags, unsigned int tag)
 {
     while (tags->id != CODEC_ID_NONE)
     {
+		// 比较Tag关键字，相等时返回对应媒体ID。
         if (toupper((tag >> 0) &0xFF) == toupper((tags->tag >> 0) &0xFF) 
          && toupper((tag >> 8) &0xFF) == toupper((tags->tag >> 8) &0xFF) 
          && toupper((tag >> 16)&0xFF) == toupper((tags->tag >> 16)&0xFF) 
          && toupper((tag >> 24)&0xFF) == toupper((tags->tag >> 24)&0xFF))
             return tags->id;
-
+		// 比较Tag关键字，不等移到数组的下一项。
         tags++;
     }
     return CODEC_ID_NONE;
 }
 
+// 校验AVI文件，读取AVI文件媒体数据块的偏移大小信息，和avi_probe()函数部分相同。
 static int get_riff(AVIContext *avi, ByteIOContext *pb) 
 {
     uint32_t tag;
     tag = get_le32(pb);
-
+	// 校验AVI文件开始关键字串"RIFF"。
     if (tag != MKTAG('R', 'I', 'F', 'F'))
         return  - 1;
 
     avi->riff_end = get_le32(pb); // RIFF chunk size
     avi->riff_end += url_ftell(pb); // RIFF chunk end
     tag = get_le32(pb);
-
+	// 校验AVI文件关键字串"AVI"或"AVIX"。
     if (tag != MKTAG('A', 'V', 'I', ' ') && tag != MKTAG('A', 'V', 'I', 'X'))
         return  - 1;
 
+	// 如果通过AVI文件关键字串"RIFF"和"AVI "或"AVIX"校验，就认为是AVI文件，这种方式非常可靠。
     return 0;
 }
 
+// 排序建立AVI索引表，函数名为clean_index不准确，功能以具体的实现代码为准。
 static void clean_index(AVFormatContext *s)
 {
     int i, j;
 
     for (i = 0; i < s->nb_streams; i++)
     {
+		// 对每个流都建一个独立的索引表。
         AVStream *st = s->streams[i];
         AVIStream *ast = st->priv_data;
         int n = st->nb_index_entries;
         int max = ast->sample_size;
         int64_t pos, size, ts;
 
+		// 如果索引表项大于1，则认为索引表已建好，不再排序重建。如果sample_size 为0,则没办法重建。
         if (n != 1 || ast->sample_size == 0)
             continue;
 
+		// 此种情况多半是用在非交织存储的avi音频流。不管交织还是非交织存储，视频流通常都有索引。
+		// 防止包太小需要太多的索引项占有大量内存，设定最小帧size阈值为1024。
+		// 比如有些音频流，最小解码帧只十多个字节，如果文件比较大则在索引上耗费太多内存。
         while (max < 1024)
             max += max;
 
+		// 取位置，大小，时钟等基本参数。
         pos = st->index_entries[0].pos;
         size = st->index_entries[0].size;
         ts = st->index_entries[0].timestamp;
 
         for (j = 0; j < size; j += max)
         {
+			// 以max指定的字节打包成帧，添加到索引表。
             av_add_index_entry(st, pos + j, ts + j / ast->sample_size, FFMIN(max, size - j), 0, AVINDEX_KEYFRAME);
         }
     }
 }
 
+// 读取AVI文件头，读取AVI文件索引，并识别具体的媒体格式，关联一些数据结构。
 static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
 {
     AVIContext *avi = s->priv_data;
@@ -135,9 +153,9 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
     int i, n;
     AVStream *st;
     AVIStream *ast;
-
+	// 当前应该读取的流的索引赋初值为-1，表示没有确定应该读的流。
     avi->stream_index_2 =  - 1;
-
+	// 校验AVI文件，读取AVI文件媒体数据块的偏移大小信息。
     if (get_riff(avi, pb) < 0)
         return  - 1;
 
@@ -147,9 +165,10 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     for (;;)
     {
+		// AVI文件的基本结构是块，一个文件有多个块，并且块还可以内嵌，在这里循环读文件头中的块。
         if (url_feof(pb))
             goto fail;
-
+		// 读取每个块的标签和大小。
         tag = get_le32(pb);
         size = get_le32(pb);
 
@@ -159,12 +178,13 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
             tag1 = get_le32(pb);
             if (tag1 == MKTAG('m', 'o', 'v', 'i'))
             {
+				// 读取movi媒体数据块的偏移和大小。
                 avi->movi_list = url_ftell(pb) - 4;
                 if (size)
                     avi->movi_end = avi->movi_list + size;
                 else
                     avi->movi_end = url_fsize(pb);
-
+				// AVI文件头后面是movi媒体数据块，所以到了movi块，文件头肯定读完，需要跳出循环。
                 goto end_of_header; // 读到数据段就认为文件头结束了，就goto
             }
             break;
@@ -172,12 +192,14 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
             frame_period = get_le32(pb);
             bit_rate = get_le32(pb) *8;
             get_le32(pb);
+			// 读取non_interleaved的初值。
             avi->non_interleaved |= get_le32(pb) &AVIF_MUSTUSEINDEX;
 
             url_fskip(pb, 2 *4);
             n = get_le32(pb);
             for (i = 0; i < n; i++)
             {
+				// 读取流数目n后，分配AVStream和AVIStream数据结构
                 AVIStream *ast;
                 st = av_new_stream(s, i);
                 if (!st)
@@ -186,6 +208,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
                 ast = av_mallocz(sizeof(AVIStream));
                 if (!ast)
                     goto fail;
+				// 关联AVStream和AVIStream
                 st->priv_data = ast;
 
                 st->actx->bit_rate = bit_rate;
@@ -193,12 +216,15 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
             url_fskip(pb, size - 7 * 4);
             break;
         case MKTAG('s', 't', 'r', 'h'):  // stream header
+			// 指示当前流在AVFormatContext结构中AVStream *streams[MAX_STREAMS]数组中的索引。
             stream_index++;
+			// 从strh 块读取所有流共有的一些信息，跳过有些不用的字段，填写需要的字段。
             tag1 = get_le32(pb);
             handler = get_le32(pb);
 
             if (stream_index >= s->nb_streams)
             {
+				// 出现这种情况通常代表媒体文件数据有错，ffplay 简单的跳过
                 url_fskip(pb, size - 8);
                 break;
             }
@@ -223,6 +249,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
                 ast->rate = 25;
                 ast->scale = 1;
             }
+			// 设置当前流的时间信息，用于计算pts 表示时间，进而同步。
             av_set_pts_info(st, 64, ast->scale, ast->rate);
 
             ast->cum_len = get_le32(pb); // start
@@ -235,6 +262,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
             switch (tag1)
             {
             case MKTAG('v', 'i', 'd', 's'): codec_type = CODEC_TYPE_VIDEO;
+				// 特别注意视频流的每一帧大小不同，所以sample_size设置为0；对比音频流每一帧大小固定的情况。
                 ast->sample_size = 0;
                 break;
             case MKTAG('a', 'u', 'd', 's'): codec_type = CODEC_TYPE_AUDIO;
@@ -243,6 +271,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
                 codec_type = CODEC_TYPE_DATA; //CODEC_TYPE_SUB ?  FIXME
                 break;
             case MKTAG('p', 'a', 'd', 's'): codec_type = CODEC_TYPE_UNKNOWN;
+				// 如果是填充流，stream_index减1就实现了简单的丢弃，不计入流数目总数。
                 stream_index--;
                 break;
             default:
@@ -252,6 +281,8 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
             url_fskip(pb, size - 12 * 4);
             break;
         case MKTAG('s', 't', 'r', 'f'):  // stream header
+			// 从strf 块读取流中编解码器的一些信息，跳过有些不用的字段，填写需要的字段。
+			// 注意有些编解码器需要的附加信息从此块中读出，保持至extradata并最终传给相应的编解码器。
             if (stream_index >= s->nb_streams)
             {
                 url_fskip(pb, size);
@@ -276,6 +307,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
                     if (size > 10 *4 && size < (1 << 30))
                     {
+						// 对视频，extradata通常是保存的是BITMAPINFO
                         st->actx->extradata_size = size - 10 * 4;
                         st->actx->extradata = av_malloc(st->actx->extradata_size + 
 							                             FF_INPUT_BUFFER_PADDING_SIZE);
@@ -321,6 +353,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
                         if (size > 16)
                         {
+							// 对音频，extradata 通常是保存的是WAVEFORMATEX
                             actx->extradata_size = get_le16(pb); // We're obviously dealing with WAVEFORMATEX
                             if (actx->extradata_size > 0)
                             {
@@ -346,6 +379,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
                     break;
                  default:
+					// 对其他流类型，ffplay简单的设置为data流。常规的是音频流和视频流，其他的少见。
                     st->actx->codec_type = CODEC_TYPE_DATA;
                     st->actx->codec_id = CODEC_ID_NONE;
                     url_fskip(pb, size);
@@ -354,6 +388,7 @@ static int avi_read_header(AVFormatContext *s, AVFormatParameters *ap)
             }
             break;
         default:  // skip tag
+			// 对其他不识别的块chunk，跳过。
             size += (size &1);
             url_fskip(pb, size);
             break;
@@ -364,6 +399,7 @@ end_of_header:
     if (stream_index != s->nb_streams - 1) // check stream number
     {
 fail: 
+		// 校验流的数目，如果有误，释放相关资源，返回-1 错误。
         for (i = 0; i < s->nb_streams; i++)
         {
             av_freep(&s->streams[i]->actx->extradata);
@@ -371,16 +407,21 @@ fail:
         }
         return  - 1;
     }
-
+	// 加载AVI文件索引。
     avi_load_index(s);
-
+	// 判别是否是非交织avi。
     avi->non_interleaved |= guess_ni_flag(s);
-    if (avi->non_interleaved) 
-        clean_index(s);
+	if (avi->non_interleaved) {
+		// 对那些非交织存储的媒体流，人工的补上索引，便于读取操作。
+		clean_index(s);
+	}
+        
 
     return 0;
 }
-
+// avi文件可以简单认为音视频媒体数据时间基相同，因此音视频数据需要同步读取，同步解码，播放才能同步。
+// 交织存储的avi文件，临近存储的音视频帧解码时间表示时间相近，微小的解码时间表示时间差别可以用帧缓存队列抵消，所以可以简单的按照文件顺序读取媒体数据。
+// 非交织存储的avi文件，视频和音频这两种媒体数据相隔甚远，小缓存简单的顺序读文件时，不能同时读到音频和视频数据，最后导致不同步，ffplay采取按最近时间点来决定读音频还是视频数据。
 int avi_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     AVIContext *avi = s->priv_data;
@@ -390,6 +431,7 @@ int avi_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     if (avi->non_interleaved)
     {
+		// 如果是非交织AVI，用最近时间点来决定读取视频还是音频数据。
         int best_stream_index = 0;
         AVStream *best_st = NULL;
         AVIStream *best_ast;
@@ -398,23 +440,28 @@ int avi_read_packet(AVFormatContext *s, AVPacket *pkt)
 
         for (i = 0; i < s->nb_streams; i++)
         {
+			// 遍历所有媒体流，按照已经播放的流数据，计算下一个最近的时间点。
             AVStream *st = s->streams[i];
             AVIStream *ast = st->priv_data;
             int64_t ts = ast->frame_offset;
 
+			// 把帧偏移换算成帧数。
             if (ast->sample_size)
                 ts /= ast->sample_size;
-
+			// 把帧数换算成pts表示时间。
             ts = av_rescale(ts, AV_TIME_BASE *(int64_t)st->time_base.num, st->time_base.den);
-
+			// 取最小的时间点对应的时间，流指针，流索引作为要读取的最佳(读取)流参数。
             if (ts < best_ts)
             {
+				// 每次读取时间点(ast->frame_offset)最近的包
                 best_ts = ts;
                 best_st = st;
                 best_stream_index = i;
             }
         }
         best_ast = best_st->priv_data;
+		// 换算最小的时间点，查找索引表取出对应的索引。
+		// 在缓存足够大，一次性完整读取帧数据时，此时best_ast->remaining 参数为0。
         best_ts = av_rescale(best_ts, best_st->time_base.den, AV_TIME_BASE *(int64_t)best_st->time_base.num);
         if (best_ast->remaining)
             i = av_index_search_timestamp(best_st, best_ts, AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD);
