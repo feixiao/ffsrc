@@ -8,6 +8,9 @@ extern "C"
 
 #include "../libavutil/avutil.h"
 
+// 定义编解码器库使用的宏、数据结构和函数，通常这些宏、数据结构和函数在此模块内相对全局有效。
+
+// 和版本信息有关的几个宏定义
 #define FFMPEG_VERSION_INT      0x000409
 #define FFMPEG_VERSION          "CVS"
 
@@ -24,13 +27,15 @@ extern "C"
 #define AV_TIME_BASE            1000000
 // https://github.com/feixiao/ffmpeg-2.8.11/blob/master/libavcodec/avcodec.h
 // AVCodecID 
+
+// Codec ID 宏定义，瘦身后的ffplay 只支持这两种codec，其他的都删掉了。
 enum CodecID
 {
     CODEC_ID_TRUESPEECH,
     CODEC_ID_MSRLE,
 	CODEC_ID_NONE
 };
-
+// Codec 类型定义，瘦身后的ffplay 只支持视频和音频。
 enum CodecType
 {
     CODEC_TYPE_UNKNOWN =  - 1,
@@ -43,6 +48,8 @@ enum CodecType
 
 #define FF_INPUT_BUFFER_PADDING_SIZE 8
 
+// AVPicture 和AVFrame 主要表示解码过程中的使用缓存，通常帧缓存是YUV 格式，
+// 输出格式有YUV,也有RGB 格式，所以定义了4 个data 指针来表示分量。
 typedef struct AVPicture
 {
     uint8_t *data[4];
@@ -51,12 +58,13 @@ typedef struct AVPicture
 
 typedef struct AVFrame
 {
-    uint8_t *data[4];
-    int linesize[4];
-    uint8_t *base[4];
+    uint8_t *data[4];		// 有多重意义，其一用NULL 来判断是否被占用
+    int linesize[4];		
+    uint8_t *base[4];		// 有多重意义，其一用NULL 来判断是否分配内存
 } AVFrame;
 
 // AVCodecContext结构表示程序运行的当前Codec使用的上下文，着重于所有Codec共有的属性(并且是在程序运行时才能确定其值)和关联其他结构的字段。
+// codec 和priv_data 关联其他结构的字段，便于在数据结构间跳转。
 typedef struct AVCodecContext
 {
     int bit_rate;
@@ -65,16 +73,16 @@ typedef struct AVCodecContext
     unsigned char *extradata;	// Codec的私有数据，对Audio是WAVEFORMATEX结构扩展字节。
     int extradata_size;			// 对Video是BITMAPINFOHEADER后的扩展字节
 
-    int width, height;
+    int width, height;			// video only
 
-    enum PixelFormat pix_fmt;
+    enum PixelFormat pix_fmt;	// 输出像素格式/视频图像格式
 
     int sample_rate;			// samples per sec  // audio only
     int channels;
     int bits_per_sample;
     int block_align;
 
-    struct AVCodec *codec;
+    struct AVCodec *codec;		// 指向Codec 的指针
     void *priv_data;			// AVCodec结构中的priv_data_size 配对使用
 
     enum CodecType codec_type;	// see CODEC_TYPE_xxx
@@ -90,6 +98,7 @@ typedef struct AVCodecContext
     struct AVPaletteControl *palctrl;
 }AVCodecContext;
 
+// 表示音视频编解码器，着重于功能函数，一种媒体类型对应一个AVCodec结构，在程序运行时有多个实例串联成链表便于查找。
 typedef struct AVCodec
 {
     const char *name;					// 标示Codec的名字
@@ -107,9 +116,11 @@ typedef struct AVCodec
     struct AVCodec *next;				// 用于把所有Codec串成一个链表，便于遍历
 }AVCodec;
 
+// 调色板大小和大小宏定义，每个调色板四字节(R,G,B,α)。
+// 有很多的视频图像颜色种类比较少，用索引间接表示每个像素的颜色值，就可以用调色板和索引值实现简单的大约的4:1 压缩比。
 #define AVPALETTE_SIZE 1024
 #define AVPALETTE_COUNT 256
-
+// 调色板数据结构定义，保存调色板数据。
 typedef struct AVPaletteControl
 {
     // demuxer sets this to 1 to indicate the palette has changed; decoder resets to 0
@@ -123,6 +134,7 @@ typedef struct AVPaletteControl
 
 } AVPaletteControl;
 
+// 编解码库使用的函数声明。
 int avpicture_alloc(AVPicture *picture, int pix_fmt, int width, int height);
 
 void avpicture_free(AVPicture *picture);

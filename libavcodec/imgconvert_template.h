@@ -4,6 +4,7 @@
 
 #pragma warning (disable:4305 4244)
 
+// 定义并实现图像颜色空间转换使用的函数和宏
 static void glue(yuv420p_to_, RGB_NAME)(AVPicture *dst, const AVPicture *src, int width, int height)
 {
     const uint8_t *y1_ptr,  *y2_ptr,  *cb_ptr,  *cr_ptr;

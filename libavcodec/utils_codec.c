@@ -2,6 +2,7 @@
 #include "avcodec.h"
 #include "dsputil.h"
 
+// 编解码库使用的帮助和工具函数
 #define EDGE_WIDTH   16
 #define STRIDE_ALIGN 16
 
@@ -9,6 +10,7 @@
 
 #define FFMAX(a,b) ((a) > (b) ? (a) : (b))
 
+// 内存动态分配函数，做一下简单参数校验后调用系统函数
 void *av_malloc(unsigned int size)
 {
     void *ptr;
@@ -19,7 +21,7 @@ void *av_malloc(unsigned int size)
 
     return ptr;
 }
-
+// 内存动态重分配函数，做一下简单参数校验后调用系统函数
 void *av_realloc(void *ptr, unsigned int size)
 {
     if (size > INT_MAX)
@@ -27,13 +29,13 @@ void *av_realloc(void *ptr, unsigned int size)
 
     return realloc(ptr, size);
 }
-
+// 内存动态释放函数，做一下简单参数校验后调用系统函数
 void av_free(void *ptr)
 {
     if (ptr)
         free(ptr);
 }
-
+// 内存动态分配函数，复用av_malloc()函数，再把分配的内存清0
 void *av_mallocz(unsigned int size)
 {
     void *ptr;
@@ -45,7 +47,7 @@ void *av_mallocz(unsigned int size)
     memset(ptr, 0, size);
     return ptr;
 }
-
+// 快速内存动态分配函数，预分配一些内存来避免多次调用系统函数达到快速的目的
 void *av_fast_realloc(void *ptr, unsigned int *size, unsigned int min_size)
 {
     if (min_size <  *size)
@@ -55,7 +57,7 @@ void *av_fast_realloc(void *ptr, unsigned int *size, unsigned int min_size)
 
     return av_realloc(ptr,  *size);
 }
-
+// 动态内存释放函数，注意传入的变量的类型。
 void av_freep(void *arg)
 {
     void **ptr = (void **)arg;
@@ -65,6 +67,7 @@ void av_freep(void *arg)
 
 AVCodec *first_avcodec = NULL;
 
+// 把编解码器串联成一个链表，便于查找。
 void register_avcodec(AVCodec *format)
 {
     AVCodec **p;
@@ -74,7 +77,7 @@ void register_avcodec(AVCodec *format)
     *p = format;
     format->next = NULL;
 }
-
+// 编解码库内部使用的缓存区，因为视频图像有RGB 或YUV 分量格式，所以每个数组有四个分量。
 typedef struct InternalBuffer
 {
     uint8_t *base[4];
@@ -85,9 +88,10 @@ typedef struct InternalBuffer
 #define INTERNAL_BUFFER_SIZE 32
 
 #define ALIGN(x, a) (((x)+(a)-1)&~((a)-1))
-
+// 计算各种图像格式要求的图像长宽的字节对齐数，是1 个还是2 个，4 个，8 个，16 个字节对齐。
 void avcodec_align_dimensions(AVCodecContext *s, int *width, int *height)
 {
+	// 默认长宽是1 个字节对齐。
     int w_align = 1;
     int h_align = 1;
 
@@ -125,7 +129,7 @@ void avcodec_align_dimensions(AVCodecContext *s, int *width, int *height)
     *width = ALIGN(*width, w_align);
     *height = ALIGN(*height, h_align);
 }
-
+// 校验视频图像的长宽是否合法。
 int avcodec_check_dimensions(void *av_log_ctx, unsigned int w, unsigned int h)
 {
     if ((int)w > 0 && (int)h > 0 && (w + 128)*(uint64_t)(h + 128) < INT_MAX / 4)
@@ -133,7 +137,8 @@ int avcodec_check_dimensions(void *av_log_ctx, unsigned int w, unsigned int h)
 
     return  - 1;
 }
-
+// 每次取internal_buffer_count 数据项，用base[0]来判断是否已分配内存，用data[0]来判断是否已被占用。base[]和data[]有多重意义。
+// 在avcodec_alloc_context 中已把internal_buffer 各项清0，所以可以用base[0]来判断。
 int avcodec_default_get_buffer(AVCodecContext *s, AVFrame *pic)
 {
     int i;
@@ -144,31 +149,36 @@ int avcodec_default_get_buffer(AVCodecContext *s, AVFrame *pic)
 
     assert(pic->data[0] == NULL);
     assert(INTERNAL_BUFFER_SIZE > s->internal_buffer_count);
-
+	// 校验视频图像的长宽是否合法。
     if (avcodec_check_dimensions(s, w, h))
         return  - 1;
-
+	// 如果没有分配内存，就分配动态内存并清0。
     if (s->internal_buffer == NULL)
         s->internal_buffer = av_mallocz(INTERNAL_BUFFER_SIZE *sizeof(InternalBuffer));
-
+	// 取缓存中的第一个没有占用内存。
     buf = &((InternalBuffer*)s->internal_buffer)[s->internal_buffer_count];
 
     if (buf->base[0])
-    {}
+    {
+		// 如果内存已分配就跳过
+	}
     else
     {
+		// 如果没有分配内存就按照图像格式要求分配内存，并设置一些标记和计算一些参数值。
         int h_chroma_shift, v_chroma_shift;
         int pixel_size, size[3];
 
+		
         AVPicture picture;
-
+		// 计算CbCr 色度分量长宽的与Y 亮度分量长宽的比，最后用移位实现。
         avcodec_get_chroma_sub_sample(s->pix_fmt, &h_chroma_shift, &v_chroma_shift);
-
+		// 规整长宽满足特定图像像素格式的要求。
         avcodec_align_dimensions(s, &w, &h);
 
+		// 把长宽放大一些，比如在mpeg4 视频中编码算法中的运动估计要把原始图像做扩展来满足不受限制运动矢量的要求(运动矢量可以超出原始图像边界)。
         w+= EDGE_WIDTH*2;
         h+= EDGE_WIDTH*2;
-
+		// 计算特定格式的图像参数，包括各分量的大小，单行长度(linesize/stride)等等。
         avpicture_fill(&picture, NULL, s->pix_fmt, w, h);
         pixel_size = picture.linesize[0] * 8 / w;
         assert(pixel_size >= 1);
@@ -186,6 +196,7 @@ int avcodec_default_get_buffer(AVCodecContext *s, AVFrame *pic)
         else
             size[2] = 0;
 
+		// 注意base[]和data[]数组还有作为标记的用途，free()时的非NULL 判断，这里要清0。
         memset(buf->base, 0, sizeof(buf->base));
         memset(buf->data, 0, sizeof(buf->data));
 
@@ -195,12 +206,12 @@ int avcodec_default_get_buffer(AVCodecContext *s, AVFrame *pic)
             const int v_shift = i == 0 ? 0 : v_chroma_shift; 		    
 
             buf->linesize[i] = picture.linesize[i];
-
+			// 实质性分配内存，并且在202 行把内存清0。
             buf->base[i] = av_malloc(size[i] + 16); //FIXME 16
             if (buf->base[i] == NULL)
                 return  - 1;
             memset(buf->base[i], 128, size[i]);
-
+			// 内存对齐计算。
             align_off = ALIGN((buf->linesize[i] * EDGE_WIDTH >> v_shift) + ( EDGE_WIDTH >> h_shift), STRIDE_ALIGN);
 
             if ((s->pix_fmt == PIX_FMT_PAL8) || !size[2])
@@ -212,33 +223,40 @@ int avcodec_default_get_buffer(AVCodecContext *s, AVFrame *pic)
 
     for (i = 0; i < 4; i++)
     {
+		// 把分配的内存参数赋值到pic 指向的结构中，传递出去。
         pic->base[i] = buf->base[i];
         pic->data[i] = buf->data[i];
         pic->linesize[i] = buf->linesize[i];
     }
+	// 内存数组计数+1，注意释放时的操作，保证计数对应的内存数组是空闲的。
     s->internal_buffer_count++;
 
     return 0;
 }
 
+// 释放占用的内存数组项。保证从0 到internal_buffer_count-1 数据项为有效数据，其他是空闲数据项
 void avcodec_default_release_buffer(AVCodecContext *s, AVFrame *pic)
 {
     int i;
     InternalBuffer *buf,  *last, temp;
-
+	// 简单的参数校验，内存必须是已经分配过。
     assert(s->internal_buffer_count);
 
     buf = NULL;
     for (i = 0; i < s->internal_buffer_count; i++)
     {
+		// 遍历内存数组，查找对应pic 的内存数组项，以data[0]内存地址为比较判别标记。
         buf = &((InternalBuffer*)s->internal_buffer)[i]; //just 3-5 checks so is not worth to optimize
         if (buf->data[0] == pic->data[0])
             break;
     }
     assert(i < s->internal_buffer_count);
+	// 内存数组计数-1, 删除最后一项.
     s->internal_buffer_count--;
     last = &((InternalBuffer*)s->internal_buffer)[s->internal_buffer_count];
 
+	// 把将要空闲的数组项和数组最后一项交换，保证internal_buffer_count 计算正确无误。
+	// 注意这里并没有内存释放的动作，便于下次复用已分配的内存
     temp =  *buf;
     *buf =  *last;
     *last = temp;

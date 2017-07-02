@@ -2,6 +2,7 @@
 #define __TRUESPEECH_DATA__
 
 #pragma warning(disable:4305 )
+// 此文件定义true speed 音频解码器使用的常数
 
 /* codebooks fo expanding input filter */
 static const int16_t ts_cb_0[32] =

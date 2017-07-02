@@ -1,6 +1,6 @@
 #include "avcodec.h"
 #include "dsputil.h"
-
+// 定义并实现图像颜色空间转换使用的函数和宏
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
 
