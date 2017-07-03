@@ -1,6 +1,7 @@
 #ifndef BERRNO_H
 #define BERRNO_H
 
+// 简单的错误码定义，用于描述错误类型
 #ifdef ENOENT
 #undef ENOENT
 #endif
