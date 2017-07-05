@@ -462,7 +462,7 @@ static int stream_component_open(VideoState *is, int stream_index)
         wanted_spec.channels = enc->channels;
         wanted_spec.silence = 0;
         wanted_spec.samples = 1024; //SDL_AUDIO_BUFFER_SIZE;
-        wanted_spec.callback = sdl_audio_callback;
+        wanted_spec.callback = sdl_audio_callback; // 音频线程的回调函数
         wanted_spec.userdata = is;
         if (SDL_OpenAudio(&wanted_spec, &spec) < 0)
         {
