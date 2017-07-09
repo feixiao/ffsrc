@@ -58,6 +58,8 @@ decode_thread函数主要调用三个函数：
 
   启动SDL的线程，执行sdl_audio_callback，从音频队列获取音频数据，编解码和输出。
 
+![5](./imgs/5.jpg)
+
 #### 参考资料
 
 +  [ffplay.c函数结构简单分析](http://blog.csdn.net/leixiaohua1020/article/details/39762143)
