@@ -6,7 +6,7 @@
 
 #### VideoState
 
-​	**ffplay**中定义的总控结构、把其他核心数据结构整合在一起，起一个中转的作用，便于在各个子结构之间跳转。
+​	**ffplay**中定义的总控结构，把其他核心数据结构整合在一起，起一个中转的作用，便于在各个子结构之间跳转。
 
 #### AVFormatContext
 
@@ -114,7 +114,7 @@ int av_open_input_file(AVFormatContext **ic_ptr, const char *filename,
 
         + max_packet_size：默认值为0，表示流式文件。
 
-        + filename：表示输入的文件名，这边 char filename[1]为了节省内容(同时内容会连续)，根据filename的实际大小复制。
+        + filename：表示输入的文件名，这边 char filename[1]为了节省内容(同时内存会连续)，根据filename的实际大小复制。
 
           ```c
           // 分配URLContext大小的时候多分配strlen(filename)
@@ -192,7 +192,32 @@ int av_open_input_file(AVFormatContext **ic_ptr, const char *filename,
 
 + **读取数据和识别文件容器类型**
 
-  ​
+  ```c
+  // 先读PROBE_BUF_MIN(2048)字节文件开始数据识别文件格式，
+  // 如果不能识别文件格式，就把识别文件缓存以2 倍的增长扩大再读文件开始数据识别，直到识别出文件格式或者超过131072 字节缓存。
+  for (probe_size = PROBE_BUF_MIN; probe_size <= PROBE_BUF_MAX && !fmt; 
+       	probe_size <<= 1)
+  {
+  	// 重新分配缓存，重新读文件开始数据。
+      pd->buf = av_realloc(pd->buf, probe_size);
+      pd->buf_size = url_fread(pb, pd->buf, probe_size);
+      // 把文件读指针seek 到文件开始处，便于下一次读。
+      if (url_fseek(pb, 0, SEEK_SET) == (offset_t) - EPIPE)
+      {
+  		// 如果seek错误，关闭文件，再重新打开。
+          url_fclose(pb);
+  	    // 重新打开文件出错，设置错误码，跳到错误处理。
+          if (url_fopen(pb, filename, URL_RDONLY) < 0)
+          {
+               file_opened = 0;
+               err = AVERROR_IO;
+               goto fail;
+            }
+       }
+  // 重新识别文件格式，因为一次比一次数据多，数据少的时候可能识别不出，数据多了可能就可以了。
+       fmt = av_probe_input_format(pd, 1);
+  }
+  ```
 
 #### AVInputFormat
 

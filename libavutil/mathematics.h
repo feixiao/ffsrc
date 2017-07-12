@@ -5,7 +5,7 @@
 // 此处做了一些简化，运算精度会降低，但普通的人很难感知到计算误差。
 static inline int64_t av_rescale(int64_t a, int64_t b, int64_t c)
 {
-    return a *b / c;
+	return a *b / c;
 }
 
 #endif
