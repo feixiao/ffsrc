@@ -52,23 +52,23 @@ typedef unsigned long long uint64_t;
 // 大小写敏感的字符串比较函数。在ffplay中只关心是否相等，不关心谁大谁小。
 static int strcasecmp(char *s1, const char *s2)
 {
-	while (toupper((unsigned char)*s1) == toupper((unsigned char)*s2++))
-		if (*s1++ == '\0')
-			return 0;
+    while (toupper((unsigned char)*s1) == toupper((unsigned char)*s2++))
+	if (*s1++ == '\0')
+	    return 0;
 
-	return (toupper((unsigned char)*s1) - toupper((unsigned char) *--s2));
+    return (toupper((unsigned char)*s1) - toupper((unsigned char) *--s2));
 }
 
 // 限幅函数，这个函数使用简单的比较逻辑来实现，比较语句多，容易中断CPU 的指令流水线，导致性能低下。
 // 如果变量a 的取值范围比较小，可以用常规的空间换时间的查表方法来优化。
 static inline int clip(int a, int amin, int amax)
 {
-	if (a < amin)
-		return amin;
-	else if (a > amax)
-		return amax;
-	else
-		return a;
+    if (a < amin)
+	return amin;
+    else if (a > amax)
+	return amax;
+    else
+	return a;
 }
 
 #endif
