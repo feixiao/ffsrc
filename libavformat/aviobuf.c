@@ -6,14 +6,14 @@
 #define IO_BUFFER_SIZE 32768
 
 // 初始化广义文件ByteIOContext结构，一些简单的赋值操作。
-int init_put_byte(ByteIOContext *s, 
-				  unsigned char *buffer, 
-				  int buffer_size, 
-				  int write_flag, 
-				  void *opaque, 
-				  int(*read_buf)(void *opaque, uint8_t *buf, int buf_size), 
-				  int(*write_buf)(void *opaque, uint8_t *buf, int buf_size), 
-				  offset_t(*seek)(void *opaque, offset_t offset, int whence))
+int init_put_byte(ByteIOContext *s,				// 需要被初始化的对象
+				  unsigned char *buffer,		// 缓存数据存放的起始地址
+				  int buffer_size,				// 缓存的最大字节数量
+				  int write_flag,				// 缓存是否可写的标志
+				  void *opaque,					// 含有下面方法的结构体指针，一般情况下面使用URLContext类型的指针
+				  int(*read_buf)(void *opaque, uint8_t *buf, int buf_size),		// 读取数据到缓存中(具体实现依赖于opaque的类型)
+				  int(*write_buf)(void *opaque, uint8_t *buf, int buf_size),	// 写数据到缓存中(具体实现依赖于opaque的类型)
+				  offset_t(*seek)(void *opaque, offset_t offset, int whence))	// 在缓存中做seek操作(具体实现依赖于opaque的类型)
 {
     s->buffer = buffer;
     s->buffer_size = buffer_size;

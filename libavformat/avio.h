@@ -17,7 +17,7 @@ typedef int64_t offset_t;
 typedef struct URLContext
 {
     struct URLProtocol *prot;	// prot 字段关联相应的广义输入文件
-    int flags;
+    int flags;					// 文件读写类型
     int max_packet_size;		// 如果非0，表示最大包大小，用于分配足够的缓存。
     void *priv_data;			// 在本例中，关联一个文件句柄
     char filename[1];			// specified filename
