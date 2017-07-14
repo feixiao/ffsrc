@@ -34,6 +34,9 @@ ffmpeg-2.8.11使用的版本
 
 + [《 一：播放器基本原理》](./docs/一：播放器基本原理.md)
 + [《 二：ffplay的架构分析》](./docs/二：ffplay的架构分析.md)
-+ [《三：ffmpeg主要数据结构之间的联系》](./docs/三：ffmpeg主要数据结构之间的联系.md)
++ [《 三：ffmpeg主要数据结构之间的联系》](./docs/三：ffmpeg主要数据结构之间的联系.md)
++ [《 四：ffmpeg打开文件过程》](./docs/四：ffmpeg打开文件过程.md)
++ [《 五：ffplay读取数据解码显示过程》](./docs/五：ffplay读取数据解码显示过程.md)
+
 
 
