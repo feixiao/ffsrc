@@ -1,6 +1,6 @@
 ## ffplay解码显示过程
 
-#### 解码显示数据
+#### 解码器初始化
 
 + 根据AVStream中的AVCodecContext获取到解码器
 
@@ -43,3 +43,32 @@
   ```
 
   传入参数codec会赋值给AVCodecContext的codec，传入参数的codec priv_data_size大小决定了AVCodecContext中priv_data的大小，最后调用 `int(*init)(AVCodecContext*);`函数 
+
+#### 解码数据
+
+​	从队列中获取数据，然后调用**avcodec_decode_video**进行解码
+
+```c
+ int avcodec_decode_video(AVCodecContext *avctx, AVFrame *picture, int *got_picture_ptr,
+		uint8_t *buf, int buf_size)
+ {
+    int ret;
+    *got_picture_ptr = 0;
+    if (buf_size)
+    {
+      	// 调用AVCodec的decode进行解码
+		ret = avctx->codec->decode(avctx, picture, got_picture_ptr, buf, buf_size);
+		if (*got_picture_ptr)
+	    	avctx->frame_number++;
+    }
+    else
+	ret = 0;
+    return ret;
+}
+```
+
+#### **显示数据**
+
+
+
+​	

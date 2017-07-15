@@ -148,21 +148,20 @@ typedef struct AVCodecContext
 
 ​	**libavcodec**中定义的结构，表示音视频编解码器，着重于功能函数，一种媒体类型对应一个AVCodec结构，在程序运行时有多个实例串联成链表便于查找。
 
-```
-    typedef struct AVCodec
-    {
-	const char *name;				// 标示Codec的名字
-	enum CodecType type;				// 标示Codec的类型，有Video ，Audio，Data 等类型
-	enum CodecID id;				// 标示Codec的ID，有CODEC_ID_MSRLE，CODEC_ID_TRUESPEECH 等
-	int priv_data_size;				// 标示具体的Codec对应的Context的大小
-
+```c
+typedef struct AVCodec
+{
+	const char *name;		// 标示Codec的名字
+	enum CodecType type;	// 标示Codec的类型，有Video ，Audio，Data 等类型
+	enum CodecID id;		// 标示Codec的ID，有CODEC_ID_MSRLE，CODEC_ID_TRUESPEECH 等
+	int priv_data_size;		// 标示具体的Codec对应的Context的大小
 	// 标示Codec对外提供的操作
 	int(*init)(AVCodecContext*);
 	int(*encode)(AVCodecContext *, uint8_t *buf, int buf_size, void *data);
 	int(*close)(AVCodecContext*);
 	int(*decode)(AVCodecContext *, void *outdata, int *outdata_size, uint8_t *buf, int buf_size);
-	int capabilities;				// 标示Codec的能力，在瘦身后的ffplay中没太大作用，可忽略
+	int capabilities;		// 标示Codec的能力，在瘦身后的ffplay中没太大作用，可忽略
 
-	struct AVCodec *next;				// 用于把所有Codec串成一个链表，便于遍历
-    }AVCodec;
+	struct AVCodec *next;	// 用于把所有Codec串成一个链表，便于遍历
+}AVCodec;
 ```
