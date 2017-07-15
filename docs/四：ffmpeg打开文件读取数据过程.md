@@ -251,3 +251,15 @@ for (probe_size = PROBE_BUF_MIN; probe_size <= PROBE_BUF_MAX && !fmt;
   	double frame_last_delay;	// 帧最后延迟
   } AVStream;
   ```
+
+#### **读取帧数据**
+
+​	ffplay在打开文件之后分别读取音视频帧数据(**AVPacket**)，然后写入音视频队列。
+
+```c
+// 一次读取一个数据包，在瘦身后的ffplay 中，一次读取一个完整的数据帧，数据包。
+int av_read_packet(AVFormatContext *s, AVPacket *pkt)
+{
+    return s->iformat->read_packet(s, pkt);
+}
+```

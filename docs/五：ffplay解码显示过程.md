@@ -1,6 +1,6 @@
-## ffplay读取数据解码显示过程
+## ffplay解码显示过程
 
-#### 读取数据解码显示数据
+#### 解码显示数据
 
 + 根据AVStream中的AVCodecContext获取到解码器
 
@@ -16,16 +16,16 @@
   	return  -1;
   ```
 
-   其中**avcodec_find_decoder**也只是从链表中查看,列表节点类型如下
+   其中**avcodec_find_decoder**也只是从链表中查找支持的**AVCodec类型**,列表节点类型如下
 
   ```c
   // 表示音视频编解码器，着重于功能函数，一种媒体类型对应一个AVCodec结构，在程序运行时有多个实例串联成链表便于查找。
   typedef struct AVCodec
   {
-  	const char *name;				// 标示Codec的名字
-  	enum CodecType type;			// 标示Codec的类型，有Video ，Audio，Data 等类型
+  	const char *name;	// 标示Codec的名字
+  	enum CodecType type;// 标示Codec的类型，有Video ，Audio，Data 等类型
   	enum CodecID id;	// 标示Codec的ID，有CODEC_ID_MSRLE，CODEC_ID_TRUESPEECH 等
-  	int priv_data_size;				// 标示具体的Codec对应的Context的大小
+  	int priv_data_size;	// 标示具体的Codec对应的Context的大小
   	// 标示Codec对外提供的操作
   	int(*init)(AVCodecContext*);
   	int(*encode)(AVCodecContext *, uint8_t *buf, int buf_size, void *data);
@@ -36,3 +36,10 @@
   	struct AVCodec *next; // 用于把所有Codec串成一个链表，便于遍历
   }AVCodec;
   ```
+  **avcodec_open**打开编解码器，初始化具体编解码器的运行环境
+
+  ```c
+  int avcodec_open(AVCodecContext *avctx, AVCodec *codec);
+  ```
+
+  传入参数codec会赋值给AVCodecContext的codec，传入参数的codec priv_data_size大小决定了AVCodecContext中priv_data的大小，最后调用 `int(*init)(AVCodecContext*);`函数 
