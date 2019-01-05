@@ -16,11 +16,19 @@
 
 + ijkplayer-exo
 
-  [ExoPlayer](https://github.com/google/ExoPlayer) Google开源的Android播放器。
+  [ExoPlayer](https://github.com/google/ExoPlayer) Google开源的Android播放器，example进行封装进行对比测试。
 
 + ijkplayer-java
 
   通用的API接口，IMediaPlayer接口和AbstractMediaPlayer抽象类。里面最主要的是IMediaPlayer，它也是用来渲染显示多媒体的。
+
+  + AndroidMediaPlayer
+
+    继承AbstractMediaPlayer类，封装系统自带MediaPlayer。
+
+  + IjkMediaPlayer
+
+    继承AbstractMediaPlayer类，基于ffmpeg的播放器实现。
 
 ##### ijkplayer项目结构
 
