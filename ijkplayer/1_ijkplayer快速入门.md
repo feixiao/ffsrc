@@ -11,7 +11,7 @@
 ##### ijkplayer-example结构
 
 ```
-ijkplayer-exo，
+ijkplayer-exo
   通过安装ijkplayer可以发现setting里面可以选择不同player来渲染多媒体显示，该模块下面就是一个MediaPlayer
   
 ijkplayer-java
@@ -31,6 +31,7 @@ ijkmedia：最主要的核心代码
 
 + [Ijkplayer Android介绍](https://blog.csdn.net/hack__zsmj/article/details/50734011)
 + [使用ijkplayer做个视频播放器](http://blog.51cto.com/13591594/2084627)
++ [dkplayer基于IjkPlayer的视频播放器](https://github.com/dueeeke/dkplayer)
 
 
 
