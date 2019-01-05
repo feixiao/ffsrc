@@ -10,13 +10,17 @@
 
 ##### ijkplayer-example结构
 
-```
-ijkplayer-exo
-  通过安装ijkplayer可以发现setting里面可以选择不同player来渲染多媒体显示，该模块下面就是一个MediaPlayer
-  
-ijkplayer-java
-	通用的API接口，里面最主要的是IMediaPlayer，它也是用来渲染显示多媒体的
-```
++ ijkplayer-example
+
+  整个app，通过设置不同的条件启动播放器。example支持三个播放器AndroidMeidaPlayer、IjkMediaPlayer和IjkExoMediaPlayer。
+
++ ijkplayer-exo
+
+  [ExoPlayer](https://github.com/google/ExoPlayer) Google开源的Android播放器。
+
++ ijkplayer-java
+
+  通用的API接口，IMediaPlayer接口和AbstractMediaPlayer抽象类。里面最主要的是IMediaPlayer，它也是用来渲染显示多媒体的。
 
 ##### ijkplayer项目结构
 
