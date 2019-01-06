@@ -44,6 +44,8 @@ ijkmedia：最主要的核心代码
 + [Ijkplayer Android介绍](https://blog.csdn.net/hack__zsmj/article/details/50734011)
 + [使用ijkplayer做个视频播放器](http://blog.51cto.com/13591594/2084627)
 + [dkplayer基于IjkPlayer的视频播放器](https://github.com/dueeeke/dkplayer)
++ [PlayerBase](https://github.com/jiajunhui/PlayerBase)
++ [GSYVideoPlayer](https://github.com/CarGuo/GSYVideoPlayer)
 
 
 
